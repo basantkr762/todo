@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Basant Kumar — Enhanced To-Do</title>
+  <style>
+    /* ---------- Base & Variables ---------- */
+    :root{
+      --bg-1: #0f1724;
+      --glass: rgba(255,255,255,0.06);
+      --muted: rgba(255,255,255,0.7);
+      --accent-start: #7c3aed; /* violet */
+      --accent-end: #06b6d4;   /* cyan */
+      --accent-2-start: #ff6363; /* coral */
+      --accent-2-end: #ffb347;   /* orange */
+      --card-radius: 18px;
+      --card-padding: 22px;
+      --shadow-1: 0 8px 30px rgba(2,6,23,0.6);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:
+        radial-gradient(800px 400px at 10% 10%, rgba(124,58,237,0.14), transparent 10%),
+        radial-gradient(600px 350px at 90% 90%, rgba(6,182,212,0.08), transparent 12%),
+        linear-gradient(180deg,var(--bg-1) 0%, #020617 100%);
+      color: #fff;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:36px;
+      gap:18px;
+      overflow:hidden;
+    }
+
+    /* ---------- Floating blobs (decorative) ---------- */
+    .blob{
+      position:absolute;
+      filter: blur(40px) saturate(120%);
+      opacity:0.85;
+      transform: translate3d(0,0,0);
+      mix-blend-mode: screen;
+      will-change: transform;
+      animation: floaty 12s ease-in-out infinite;
+    }
+    .blob.b1{ width:420px; height:420px; left:-120px; top:-100px; background:linear-gradient(45deg,var(--accent-start), rgba(255,127,80,0.2)); animation-duration:14s; }
+    .blob.b2{ width:360px; height:360px; right:-80px; bottom:-120px; background:linear-gradient(45deg,var(--accent-end), rgba(124,58,237,0.15)); animation-duration:18s; animation-delay:1s; }
+    .blob.b3{ width:220px; height:220px; left:50%; top:10%; transform:translateX(-10%); background:linear-gradient(45deg,var(--accent-2-start),var(--accent-2-end)); animation-duration:20s; opacity:0.28; }
+
+    @keyframes floaty {
+      0%{transform: translate3d(0,0,0) rotate(0deg)}
+      50%{transform: translate3d(18px, -18px, 0) rotate(6deg)}
+      100%{transform: translate3d(0,0,0) rotate(0deg)}
+    }
+
+    /* ---------- Main container (3D card) ---------- */
+    .wrap{
+      width:100%;
+      max-width:920px;
+      position:relative;
+      perspective:1200px;
+    }
+    .card{
+      width:100%;
+      border-radius: var(--card-radius);
+      padding: var(--card-padding);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: var(--shadow-1);
+      transform-style: preserve-3d;
+      transition: transform 300ms cubic-bezier(.2,.9,.2,1), box-shadow 300ms;
+      position:relative;
+      overflow:hidden;
+      backdrop-filter: blur(6px) saturate(120%);
+    }
+    /* subtle interactive tilt on hover */
+    .card:hover{ transform: rotateX(3deg) rotateY(-5deg) translateY(-8px) scale(1.01); box-shadow: 0 30px 60px rgba(2,6,23,0.7); }
+
+    /* gradient top accent bar */
+    .accent-bar{
+      position:absolute;
+      inset:0 0 auto 0;
+      height:8px;
+      border-top-left-radius: var(--card-radius);
+      border-top-right-radius: var(--card-radius);
+      background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+
+    header{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      margin-bottom:14px;
+    }
+    .logo{
+      width:64px;height:64px;border-radius:14px;
+      background: linear-gradient(135deg, var(--accent-2-start), var(--accent-2-end));
+      display:flex;align-items:center;justify-content:center;
+      font-weight:700;color:#111;font-size:20px;box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+    h1{margin:0;font-size:20px;letter-spacing:-0.2px}
+    p.lead{margin:0; font-size:13px; color: rgba(255,255,255,0.75)}
+
+    /* ---------- Controls ---------- */
+    .controls{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-left:auto;
+    }
+    .search{
+      display:flex; align-items:center;
+      background:var(--glass);
+      border-radius:999px;padding:8px 12px;
+      border:1px solid rgba(255,255,255,0.04);
+    }
+    .search input{
+      background:transparent;border:none;color:var(--muted);outline:none;width:160px;
+      font-size:13px;
+    }
+    .btn{
+      padding:8px 14px;border-radius:12px;border:none;background:linear-gradient(90deg,var(--accent-start),var(--accent-end));color:#04111a;font-weight:600;
+      box-shadow: 0 8px 18px rgba(124,58,237,0.18); cursor:pointer;
+      transition: transform 160ms ease;
+      font-size:13px;
+    }
+    .btn:active{ transform: translateY(1px) scale(.995) }
+
+    /* ---------- Add form ---------- */
+    .add-wrap{ display:flex; gap:10px; margin-bottom:12px; align-items:center; }
+    .input{
+      flex:1; padding:12px 14px; border-radius:12px; background: rgba(255,255,255,0.03);
+      color:var(--muted); border:1px solid rgba(255,255,255,0.04); outline:none; font-size:15px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    }
+
+    /* ---------- Filters & info ---------- */
+    .meta{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; color:rgba(255,255,255,0.7); font-size:13px }
+    .filters{ display:flex; gap:8px; }
+    .chip{ padding:8px 10px; border-radius:999px; background:transparent; border:1px solid rgba(255,255,255,0.04); cursor:pointer; font-size:13px; color:rgba(255,255,255,0.78) }
+    .chip.active{ background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); box-shadow: inset 0 -8px 20px rgba(6,182,212,0.02); }
+
+    /* ---------- Task list ---------- */
+    .list{ display:flex; flex-direction:column; gap:10px; max-height:420px; overflow:auto; padding-right:6px; }
+    .task{
+      display:flex; gap:12px; align-items:center; padding:12px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03);
+      transform-origin:center left; transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms;
+    }
+    .task:hover{ transform: translateX(4px); box-shadow: 0 10px 30px rgba(2,6,23,0.45) }
+    .check{
+      min-width:48px; min-height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+      border:1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02);
+      transition: all 160ms ease;
+      font-weight:700;
+    }
+    .check.done{ background: linear-gradient(90deg,var(--accent-start),var(--accent-end)); color:#06121a; transform: scale(1.03) }
+    .content{ flex:1; display:flex; gap:10px; align-items:center; min-width:0; }
+    .txt{ font-size:15px; color:var(--muted); word-break:break-word; }
+    .txt.done{ text-decoration: line-through; opacity:0.6; color:rgba(255,255,255,0.6) }
+    .actions{ display:flex; gap:8px; align-items:center; margin-left:auto }
+    .small-btn{ padding:8px 10px; border-radius:10px; background:transparent; border:1px solid rgba(255,255,255,0.04); cursor:pointer; font-size:13px; color:rgba(255,255,255,0.82) }
+
+    /* editable input inside task */
+    .edit-input{ width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.35); color:var(--muted); outline:none; }
+
+    /* empty state */
+    .empty{ text-align:center; padding:40px 12px; color:rgba(255,255,255,0.6) }
+
+    /* footer */
+    .footer{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; gap:12px; font-size:12px; color:rgba(255,255,255,0.6) }
+    .brand{ display:flex; align-items:center; gap:8px; }
+
+    /* scrollbar styling (subtle) */
+    .list::-webkit-scrollbar{ width:8px }
+    .list::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.03); border-radius:20px }
+    .list::-webkit-scrollbar-track{ background: transparent }
+
+    /* responsive */
+    @media (max-width:680px){
+      .wrap{ padding:12px }
+      .search input{ width:90px }
+    }
+  </style>
+</head>
+<body>
+  <!-- Decorative blobs -->
+  <div class="blob b1" aria-hidden="true"></div>
+  <div class="blob b2" aria-hidden="true"></div>
+  <div class="blob b3" aria-hidden="true"></div>
+
+  <div class="wrap" id="app">
+    <div class="card" role="application" aria-labelledby="main-title">
+      <div class="accent-bar" aria-hidden="true"></div>
+
+      <header>
+        <div class="logo" aria-hidden="true">BK</div>
+        <div>
+          <h1 id="main-title">Basant's To-Do</h1>
+          <p class="lead">Gradient animations • 3D card • floating elements • Local storage</p>
+        </div>
+
+        <div class="controls" role="search" aria-label="task search area">
+          <div class="search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="opacity:0.9;margin-right:8px"><path d="M21 21l-4.35-4.35" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <input id="search" placeholder="Search tasks..." aria-label="Search tasks" />
+          </div>
+          <button id="clearAll" class="btn" title="Clear all tasks">Clear All</button>
+        </div>
+      </header>
+
+      <section>
+        <form id="addForm" class="add-wrap" autocomplete="off" onsubmit="return false;">
+          <input id="newTask" class="input" placeholder="Add a new task..." aria-label="New task input" maxlength="240" />
+          <button id="addBtn" class="btn" type="submit">Add Task</button>
+        </form>
+
+        <div class="meta">
+          <div class="filters" role="tablist" aria-label="Filters">
+            <button class="chip active" data-filter="all" role="tab">All</button>
+            <button class="chip" data-filter="active" role="tab">Active</button>
+            <button class="chip" data-filter="done" role="tab">Completed</button>
+          </div>
+          <div id="stats" aria-live="polite">0 total</div>
+        </div>
+
+        <div id="list" class="list" aria-live="polite" aria-relevant="additions removals">
+          <div class="empty">No tasks yet — add something ✨</div>
+        </div>
+
+        <div class="footer">
+          <div class="brand"><strong style="letter-spacing:0.2px">Made with ♥ by Basant Kumar</strong></div>
+          <div style="opacity:0.8">Local storage enabled • Works offline</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- Simple enhanced To-Do (vanilla JS) ---------- */
+    (function(){
+      const KEY = 'bk_enhanced_todo_v1';
+      let tasks = [];
+      let filter = 'all';
+
+      // DOM refs
+      const listEl = document.getElementById('list');
+      const newTaskInput = document.getElementById('newTask');
+      const addBtn = document.getElementById('addBtn');
+      const addForm = document.getElementById('addForm');
+      const statsEl = document.getElementById('stats');
+      const chips = document.querySelectorAll('.chip');
+      const searchInput = document.getElementById('search');
+      const clearAllBtn = document.getElementById('clearAll');
+
+      // load
+      function load(){
+        try{
+          const raw = localStorage.getItem(KEY);
+          tasks = raw ? JSON.parse(raw) : [];
+        }catch(e){
+          tasks = [];
+        }
+        render();
+      }
+
+      // persist
+      function save(){
+        try{ localStorage.setItem(KEY, JSON.stringify(tasks)); } catch(e){}
+      }
+
+      // create
+      function addTask(text){
+        const trimmed = text && text.trim();
+        if(!trimmed) return false;
+        const t = { id: Date.now() + Math.floor(Math.random()*999), text: trimmed, done: false, created: Date.now() };
+        tasks.unshift(t);
+        save();
+        render();
+        return true;
+      }
+
+      // update
+      function toggleDone(id){
+        tasks = tasks.map(t => t.id === id ? {...t, done: !t.done} : t);
+        save(); render();
+      }
+      function updateText(id, newText){
+        tasks = tasks.map(t => t.id === id ? {...t, text: newText} : t);
+        save(); render();
+      }
+      function removeTask(id){
+        tasks = tasks.filter(t => t.id !== id);
+        save(); render();
+      }
+      function clearAll(){
+        if(!confirm('Delete all tasks?')) return;
+        tasks = []; save(); render();
+      }
+
+      // render functions
+      function getFiltered(query = '') {
+        const q = String(query||'').toLowerCase().trim();
+        return tasks.filter(t => {
+          if(filter === 'active') if(t.done) return false;
+          if(filter === 'done') if(!t.done) return false;
+          if(!q) return true;
+          return t.text.toLowerCase().includes(q);
+        });
+      }
+
+      function render(){
+        const q = searchInput.value || '';
+        const current = getFiltered(q);
+        listEl.innerHTML = '';
+        if(current.length === 0){
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = tasks.length ? 'No matching tasks.' : 'No tasks yet — add something ✨';
+          listEl.appendChild(empty);
+        } else {
+          current.forEach(t => {
+            const item = document.createElement('div');
+            item.className = 'task';
+            item.setAttribute('data-id', t.id);
+
+            // check button
+            const check = document.createElement('div');
+            check.className = 'check' + (t.done ? ' done' : '');
+            check.title = t.done ? 'Mark as active' : 'Mark as done';
+            check.innerHTML = t.done ? '✓' : '+';
+            check.addEventListener('click', () => toggleDone(t.id));
+            item.appendChild(check);
+
+            // content
+            const content = document.createElement('div');
+            content.className = 'content';
+
+            const txt = document.createElement('div');
+            txt.className = 'txt' + (t.done ? ' done' : '');
+            txt.textContent = t.text;
+            txt.setAttribute('tabindex', '0');
+            txt.setAttribute('role', 'textbox');
+            txt.setAttribute('aria-label', 'Task: '+t.text);
+
+            // double-click to edit
+            txt.addEventListener('dblclick', () => startEdit(t, txt, content, item));
+            // keyboard enter to edit when focused
+            txt.addEventListener('keydown', (ev) => {
+              if(ev.key === 'Enter'){ ev.preventDefault(); startEdit(t, txt, content, item); }
+            });
+
+            content.appendChild(txt);
+            item.appendChild(content);
+
+            // actions
+            const actions = document.createElement('div');
+            actions.className = 'actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'small-btn';
+            editBtn.textContent = 'Edit';
+            editBtn.addEventListener('click', () => startEdit(t, txt, content, item));
+            actions.appendChild(editBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'small-btn';
+            delBtn.textContent = 'Delete';
+            delBtn.addEventListener('click', () => {
+              if(confirm('Delete this task?')) removeTask(t.id);
+            });
+            actions.appendChild(delBtn);
+
+            item.appendChild(actions);
+            listEl.appendChild(item);
+          });
+        }
+
+        // stats
+        statsEl.textContent = `${tasks.length} total • ${tasks.filter(t=>!t.done).length} active • ${tasks.filter(t=>t.done).length} completed`;
+      }
+
+      // start editing a task inline
+      function startEdit(task, txtEl, contentEl, itemEl){
+        // if already editing, ignore
+        if(itemEl.querySelector('.edit-input')) return;
+        const input = document.createElement('input');
+        input.className = 'edit-input';
+        input.value = task.text;
+        contentEl.replaceChild(input, txtEl);
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+
+        function finish(saveFlag){
+          if(saveFlag){
+            const val = input.value.trim();
+            if(val === '') {
+              if(confirm('Empty text — delete task?')) removeTask(task.id);
+              else { contentEl.replaceChild(txtEl, input); }
+            } else {
+              updateText(task.id, val);
+            }
+          } else {
+            contentEl.replaceChild(txtEl, input);
+          }
+        }
+
+        input.addEventListener('keydown', (e) => {
+          if(e.key === 'Enter'){ finish(true); }
+          if(e.key === 'Escape'){ finish(false); }
+        });
+
+        input.addEventListener('blur', () => finish(true));
+      }
+
+      // init events
+      addBtn.addEventListener('click', () => {
+        const ok = addTask(newTaskInput.value);
+        if(ok){ newTaskInput.value = ''; newTaskInput.focus(); }
+      });
+      addForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const ok = addTask(newTaskInput.value);
+        if(ok){ newTaskInput.value=''; newTaskInput.focus(); }
+      });
+
+      chips.forEach(c => {
+        c.addEventListener('click', () => {
+          chips.forEach(x=>x.classList.remove('active'));
+          c.classList.add('active');
+          filter = c.getAttribute('data-filter') || 'all';
+          render();
+        });
+      });
+
+      searchInput.addEventListener('input', () => {
+        render();
+      });
+
+      clearAllBtn.addEventListener('click', () => clearAll());
+
+      // keyboard shortcut: "/" to focus search, "n" to focus new task
+      document.addEventListener('keydown', (e) => {
+        if(e.key === '/' && document.activeElement !== searchInput){
+          e.preventDefault(); searchInput.focus(); searchInput.select();
+        }
+        if(e.key.toLowerCase() === 'n' && document.activeElement !== newTaskInput){
+          newTaskInput.focus();
+        }
+      });
+
+      // start
+      load();
+
+      // small animation: gently nudge blobs with pointer movement
+      const blobs = document.querySelectorAll('.blob');
+      let last = {x:0,y:0};
+      document.addEventListener('mousemove', (ev) => {
+        const cx = ev.clientX / window.innerWidth - 0.5;
+        const cy = ev.clientY / window.innerHeight - 0.5;
+        blobs.forEach((b, i) => {
+          const depth = (i+1) * 10;
+          b.style.transform = `translate3d(${cx*depth}px, ${cy*depth}px, 0) rotate(${cx*depth}deg)`;
+        });
+      });
+
+    })();
+  </script>
+</body>
+</html>
